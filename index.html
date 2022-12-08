@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alterea Automation Tools</title>
+    <style>
+        html, body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            padding: 25px;
+        }
+
+        ol {
+            font-size: 80%;
+            /* padding: 0;
+            list-style-type: none; */
+        }
+
+        h4 {
+            margin-bottom: 0;
+        }
+
+        i {
+            font-size: 80%;
+            color: #777;
+        }
+        
+        .issue > li {
+            /* margin-bottom: 5px; */
+        }
+    </style>
+    <script lang="javascript" src="https://cdn.jsdelivr.net/npm/xlsx"></script>
+
+</head>
+<body>
+    <h1>Alterea Automation Tools</h1>
+    <p>Please include a <b>queries</b> and a <b>results</b> tab in your .xlsx file</p>
+
+    <h2>Organize Superintendent Emails</h2>
+    <input type="file"></input>
+
+    <h3 id="validEmailsHeader">Found Valid Emails</h3>
+    <ol id="validEmails"></ol>
+
+    <h3>Issues</h3>
+    <h4 id="matchIssueHeader">No Emails Matched</h4>
+    <ol id="matchIssue"  class="issue"></ol>
+
+    <h4 id="foundIssueHeader" >No Emails Discovered</h4>
+    <ol id="foundIssue"  class="issue"></ol>
+
+    <h4 id="queryIssueHeader">No Matching Query</h4>
+    <ol id="queryIssue" class="issue"></ol>
+
+
+</body>
+
+<script type="module">
+
+    const read = (buffer) => {
+        return new Promise(resolve => {
+            const wb = XLSX.read(buffer, {type: 'array'});
+            const wsname = wb.SheetNames[0];
+            const results = Array.from(wb.SheetNames).find(str => str.match(/results/gi))
+            const queries = Array.from(wb.SheetNames).find(str => str.match(/queries/gi))
+
+            XLSX.utils.sheet_add_aoa(wb.Sheets[results], [["Query", "Page Title", "Page Content", "Query Two", "", "Emails", "", "", "", "Website", "Date"]], { origin: "A1" });
+
+            const queryLines = XLSX.utils.sheet_to_json(wb.Sheets[queries], {header: 1})
+            const resultsLines = XLSX.utils.sheet_to_json(wb.Sheets[results], {header: 1})
+
+            const sheets = {
+                queries: {
+                    name: queries,
+                    headers: queryLines.splice(0,1)[0],
+                    lines: queryLines.filter(arr => arr.length)
+                },
+                results: {
+                    name: results,
+                    headers: resultsLines.splice(0,1)[0],
+                    lines: resultsLines.filter(arr => arr.length)
+                }
+            }
+            resolve(sheets)
+        })
+    }
+
+// const getLines =  (f, hasHeader) => {
+//     return new Promise(resolve => {
+//         const reader = new FileReader();
+//             reader.onload = () => {
+//                 const lines = reader.result.split('\n').map((line) => line.split('\t'));
+//                 let headers = (hasHeader) ? lines.shift() : null;
+//                 resolve({headers, lines})
+//             };
+//             reader.readAsText(f);
+//         })
+//     }
+
+    const resultsColumns = {
+        'query': 3,
+        'emails': 5,
+    }
+
+    const regex = /(?:([a-z]+\.)\s)?([a-z]+)\s(?:([a-z]+\.)\s)?([a-z]+)(?:\,?\s(Ph\.D\.?|Ed\.D\.?))?\s+(.*)\s((?:Retired.+|Principal.+)?(?:Superintendent|Superientendent|Supt|Superintenedent|Superintendant|Superintedent|Superintendent|Superinentendent|Superentendent|Suerintendent|Supertendent|Director Of Admissions))/gi
+
+
+    const file = document.querySelector('input[type="file"]');
+    const foundIssue = document.querySelector('#foundIssue');
+    const matchIssue = document.querySelector('#matchIssue');
+    const queryIssue = document.querySelector('#queryIssue');
+    const validEmails = document.querySelector('#validEmails');
+
+    const queryIssueHeader = document.querySelector('#queryIssueHeader');
+    const foundIssueHeader = document.querySelector('#foundIssueHeader');
+    const matchIssueHeader = document.querySelector('#matchIssueHeader');
+    const validEmailsHeaer = document.querySelector('#validEmailsHeader');
+
+    file.onchange = async () => {
+
+
+        const buffer = await file.files[0].arrayBuffer()
+        const fileInfo = await read(buffer)
+
+        if (!fileInfo.results || !fileInfo.queries) {
+            alert('Please select a .xlsx file with both a "results" and a "queries" tab...')
+            return
+        }
+
+        const resultsInfo = fileInfo.results
+
+        const queryInfo = fileInfo.queries
+
+        const queryHeader =  queryInfo.headers.findIndex(str => str && str.includes('Search Query'))
+        const allQueries = queryInfo.lines.map(arr => arr[queryHeader].trim()) 
+
+        const newSheetInfo = {}
+
+        let valid = []
+        let invalid = []
+        let nQueries = 0
+
+        resultsInfo.lines.forEach((arr, i) => {
+            const query = arr[resultsColumns.query]
+            const index = allQueries.findIndex(str => str == query)
+
+            const isValid = index !== -1
+
+
+            if (!isValid) {
+                if (!invalid.includes(query)) {
+                    invalid.push(query)
+                    const li = document.createElement('li')
+                    li.innerHTML = `${query}`
+                    queryIssue.appendChild(li)
+                    nQueries++
+                }
+                return
+            } else {
+                if (!valid.includes(query)) {
+                    valid.push(query)
+                    nQueries++
+                }
+            }
+
+            const [fullName, firstName, lastName, _, __, linkedin, location, company, role, website] = queryInfo.lines[index]
+
+                const info = newSheetInfo[fullName] ?? {
+                    fullName,
+                    firstName,
+                    lastName,
+                    linkedin,
+                    location,
+                    company,
+                    role,
+                    website,
+                    emails: new Set(),
+                    query: query
+                }
+
+                const emails = arr[resultsColumns.emails]
+                if (emails) emails.split(',').forEach(o => {
+                    const res = o.trim()
+                    if (res) info.emails.add(res)
+                })
+
+
+                newSheetInfo[fullName] = info
+        })
+
+        queryIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(invalid.length/nQueries)).toFixed(3)}% of All Queries — ${invalid.length}/${nQueries}</i>`)
+
+        const numValid = resultsInfo.lines.length - invalid.length
+
+        const newSheet = [[
+            'Email Name',
+            'Name',
+            'Email',
+            'School',
+            'Role',
+            'Location',
+            'Domain'
+        ]]
+
+
+        let noEmail = 0
+        let noEmailMatched = 0
+        let nValidEmails = 0
+
+        const people = Object.keys(newSheetInfo).length
+
+        for (let fullName in newSheetInfo ) {
+            const info = newSheetInfo[fullName]
+            const emails = Array.from(info.emails)
+
+            const email = (info.emails.length === 1) ? emails[0] : emails.find((email) => {
+                const fnl = info.firstName.toLowerCase()
+                const lnl = (info.lastName ?? '').toLowerCase()
+                const lnlNoS = lnl.replace(/s$/, '')
+                if (email.includes(`${lnl}`)) return true
+                else if (email.includes(`${lnlNoS}`)) return true
+
+                else if (email.includes(`${fnl}`)) return true
+
+                else if (email.includes(`${fnl}.${lnl}`)) return true
+                else if (email.includes(`${fnl}.${lnlNoS}`)) return true
+
+                else if (email.includes(`${lnl}.${fnl}`)) return true
+                else if (email.includes(`${lnlNoS}.${fnl}`)) return true
+
+                else if (email.includes(`${fnl}${lnl}`)) return true
+                else if (email.includes(`${lnl}${fnl}`)) return true
+
+                else if (email.includes(`${fnl[0]}${lnl}`)) return true
+                else if (email.includes(`${fnl[0]}${lnlNoS}`)) return true
+
+
+                else if (email.includes(`${fnl}${lnl[0]}`)) return true
+
+            })
+
+            const suptEmail =  emails.find(o => o.includes('superintendent') || o.includes('supt'))
+            if (suptEmail && !email) email = suptEmail
+
+            if (email) {
+                    const li = document.createElement('li')
+                    li.innerHTML = `${fullName} - ${email}`
+                    validEmails.appendChild(li)
+                    nValidEmails++
+                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, info.website])
+                    if (email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, info.domain])
+            } else {
+                const li = document.createElement('li')
+                if (emails.length === 0) {
+                    noEmail++
+                    li.innerHTML = `${fullName} - ${info.query}`
+                    foundIssue.appendChild(li)
+                } else {
+                    noEmailMatched++
+                    li.innerHTML = `<p>${fullName}</p><ul>${emails.map(email => `<li>${email}</li>`).join('')}</ul>`
+                    matchIssue.appendChild(li)
+                }
+            }
+        }
+
+        validEmailsHeaer.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(people))).toFixed(3)}% of Names - ${nValidEmails}/${people}</i>`)
+        foundIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmail/(people))).toFixed(3)}% of Names - ${noEmail}/${people}</i>`)
+        matchIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmailMatched/(people - noEmail))).toFixed(3)}% of Names (with valid queries) with Emails - ${noEmailMatched}/${people - noEmail}</i>`)
+
+
+        // const tsv = newSheet.map(arr => arr.join('\t')).join('\n')
+
+        // const filename = 'emails.tsv'
+
+        // // Download File
+        // var element = document.createElement('a');
+        // element.setAttribute('href', 'data:text/tab-separated-values;charset=utf-8,' + encodeURIComponent(tsv));
+        // element.setAttribute('download', filename);
+        // element.style.display = 'none';
+        // document.body.appendChild(element);
+        // element.click();
+        // document.body.removeChild(element);
+
+        var workbook = XLSX.utils.book_new();
+        var sheet1 = XLSX.utils.aoa_to_sheet(newSheet);
+        XLSX.utils.book_append_sheet(workbook, sheet1, "Superintendent Emails");
+
+        XLSX.writeFile(workbook, "alterea-superintendent-email-automation.xlsx");
+
+    }
+</script>
+
+</html>
