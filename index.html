@@ -254,7 +254,7 @@
                     validEmails.appendChild(li)
                     nValidEmails++
                     newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, email.split('@')[1]])
-                    if (email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1]])
+                    if (suptEmail && email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1]])
             } else {
                 const li = document.createElement('li')
                 if (emails.length === 0) {
