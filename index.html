@@ -34,6 +34,17 @@
         .issue > li {
             /* margin-bottom: 5px; */
         }
+
+        button {
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 1s;
+        }
+
+        button.active {
+            opacity: 1;
+            pointer-events: all;
+        }
     </style>
     <script lang="javascript" src="https://cdn.jsdelivr.net/npm/xlsx"></script>
 
@@ -44,6 +55,7 @@
 
     <h2>Organize Superintendent Emails</h2>
     <input type="file"></input>
+    <button>Download</button>
 
     <h3 id="validEmailsHeader">Found Valid Emails</h3>
     <ol id="validEmails"></ol>
@@ -63,6 +75,8 @@
 
 <script type="module">
 
+    const downloadButton = document.querySelector('button');
+
     const read = (buffer) => {
         return new Promise(resolve => {
             const wb = XLSX.read(buffer, {type: 'array'});
@@ -70,7 +84,11 @@
             const results = Array.from(wb.SheetNames).find(str => str.match(/results/gi))
             const queries = Array.from(wb.SheetNames).find(str => str.match(/queries/gi))
 
-            XLSX.utils.sheet_add_aoa(wb.Sheets[results], [["Query", "Page Title", "Page Content", "Query Two", "", "Emails", "", "", "", "Website", "Date"]], { origin: "A1" });
+            const initialResultsHeader = XLSX.utils.sheet_to_json(wb.Sheets[results], {header: 1}).splice(0,1)[0]
+            const found = initialResultsHeader.find(str => typeof str === 'string' && (str.includes('Query') || str.includes('Email')))
+
+
+            if (!found) XLSX.utils.sheet_add_aoa(wb.Sheets[results], [["Query", "Page Title", "Page Content", "Query Two", "", "Emails", "", "", "", "Website", "Date"]], { origin: "A1" });
 
             const queryLines = XLSX.utils.sheet_to_json(wb.Sheets[queries], {header: 1})
             const resultsLines = XLSX.utils.sheet_to_json(wb.Sheets[results], {header: 1})
@@ -125,6 +143,8 @@
     file.onchange = async () => {
 
 
+        downloadButton.classList.remove('active')
+
         const buffer = await file.files[0].arrayBuffer()
         const fileInfo = await read(buffer)
 
@@ -134,11 +154,17 @@
         }
 
         const resultsInfo = fileInfo.results
-
         const queryInfo = fileInfo.queries
 
         const queryHeader =  queryInfo.headers.findIndex(str => str && str.includes('Search Query'))
         const allQueries = queryInfo.lines.map(arr => arr[queryHeader].trim()) 
+
+
+        const resultsQueryHeader = resultsInfo.headers.findIndex(str => str && str.includes('Query'))
+        if (resultsQueryHeader) resultsColumns.query = resultsQueryHeader
+
+        const resultsEmailHeader = resultsInfo.headers.findIndex(str => str && str.includes('Email'))
+        if (resultsQueryHeader) resultsColumns.emails = resultsEmailHeader
 
         const newSheetInfo = {}
 
@@ -215,35 +241,94 @@
 
         const people = Object.keys(newSheetInfo).length
 
+
+        const conditions = [
+
+            // Last Name
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${lnlNoS}`))),
+
+            // First Name
+            (email, info) => (email.includes(`${info.fnl}`)),
+
+            // First and Last Initial
+            (email, info) => info.lnl.find(lnl => ((email.slice(0,3) === (`${info.fnl[0]}${lnl[0]}@`)))),
+
+            // First Name and Last Name
+            (email, info) => info.lnl.find(lnl => (email.includes(`${info.fnl}`) && email.includes(`${lnl}`))),
+
+            // First Initial Last Name Together
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${info.fnl[0]}${lnlNoS}`))),
+
+            // First Name Last Initial  Together
+            (email, info) => info.lnl.find(lnl => (email.includes(`${info.fnl}${lnl[0]}`))),
+
+            // Last Initial First Name  Together
+            (email, info) => info.lnl.find(lnl => (email.includes(`${lnl}${info.fnl[0]}`))),
+
+
+            // Full First and Last Name
+            (email, info) => info.lnl.find(lnl => (email.includes(`${info.fnl}${lnl}`))),
+            (email, info) => info.lnl.find(lnl => (email.includes(`${lnl}${info.fnl}`))),
+
+            // Dots
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${info.fnl}.${lnlNoS}`))),
+            (email, info) => info.lnl.find(lnl => (email.includes(`${lnl}.${info.fnl}`))),
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${lnlNoS}.${info.fnl}`))),
+
+            // Underscore
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${info.fnl}_${lnlNoS}`))),
+            (email, info) => info.lnl.find(lnl => (email.includes(`${lnl}_${info.fnl}`))),
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${lnlNoS}_${info.fnl}`))),
+
+        ]
+
+
+        const reversedConditions = conditions.reverse()
+
         for (let fullName in newSheetInfo ) {
             const info = newSheetInfo[fullName]
             const emails = Array.from(info.emails)
 
-            const email = (info.emails.length === 1) ? emails[0] : emails.find((email) => {
-                const fnl = info.firstName.toLowerCase()
-                const lnl = (info.lastName ?? '').toLowerCase()
-                const lnlNoS = lnl.replace(/s$/, '')
-                if (email.includes(`${lnl}`)) return true
-                else if (email.includes(`${lnlNoS}`)) return true
+            let email;
+            if (info.emails.length === 1) email = emails[0]
+            else {
 
-                else if (email.includes(`${fnl}`)) return true
+                const wasMatch = []
+                const ogEmails = [...emails]
+                const mapped = emails.map((email) => {
+                    email = email.toLowerCase()
 
-                else if (email.includes(`${fnl}.${lnl}`)) return true
-                else if (email.includes(`${fnl}.${lnlNoS}`)) return true
+                    const fnl = info.firstName.toLowerCase()
+                    const lnl = (info.lastName ?? '').toLowerCase().split(' ')[0].split(',')[0].split('-')
+                    const lnlNoS = lnl.map(str => str.replace(/s$/, ''))
+                    const emailInfo = {
+                        fnl,
+                        lnl,
+                        lnlNoS
+                    }
 
-                else if (email.includes(`${lnl}.${fnl}`)) return true
-                else if (email.includes(`${lnlNoS}.${fnl}`)) return true
+                    const errorScore = reversedConditions.findIndex(condition => condition(email, emailInfo)) // Low is better
 
-                else if (email.includes(`${fnl}${lnl}`)) return true
-                else if (email.includes(`${lnl}${fnl}`)) return true
+                    return {
+                        email,
+                        score: errorScore
+                    }
+                }).filter(o => o.score !== -1)
 
-                else if (email.includes(`${fnl[0]}${lnl}`)) return true
-                else if (email.includes(`${fnl[0]}${lnlNoS}`)) return true
+                // const log = mapped.length > 1
 
+                const notSorted = mapped.map(o => o.email)
 
-                else if (email.includes(`${fnl}${lnl[0]}`)) return true
+                const sorted = mapped.sort((a, b) => {
+                    const res = a.score < b.score ? -1 : 1
+                    return res
+                }).map(o => o.email)
 
-            })
+                if (sorted.length > 0) {
+                    email = sorted[0]
+                    // if (log) console.log('Decision', fullName, email, notSorted)
+                }
+            }
 
             const suptEmail =  emails.find(o => o.includes('superintendent') || o.includes('supt'))
             if (suptEmail && !email) email = suptEmail
@@ -287,11 +372,14 @@
         // element.click();
         // document.body.removeChild(element);
 
-        var workbook = XLSX.utils.book_new();
-        var sheet1 = XLSX.utils.aoa_to_sheet(newSheet);
-        XLSX.utils.book_append_sheet(workbook, sheet1, "Superintendent Emails");
+        downloadButton.classList.add('active')
+        downloadButton.onclick = () => {
+            var workbook = XLSX.utils.book_new();
+            var sheet1 = XLSX.utils.aoa_to_sheet(newSheet);
+            XLSX.utils.book_append_sheet(workbook, sheet1, "Superintendent Emails");
 
-        XLSX.writeFile(workbook, "alterea-superintendent-email-automation.xlsx");
+            XLSX.writeFile(workbook, "alterea-superintendent-email-automation.xlsx");
+        }
 
     }
 </script>
