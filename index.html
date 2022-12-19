@@ -172,10 +172,26 @@
         let invalid = []
         let nQueries = 0
 
+        const amountToMatch = 10
+        const processString = (str) => {
+            return str.trim()
+            .replace('Dr. ', '')
+            .toLowerCase()
+            .replace(/\s\s/, ' ')
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Remove accents (keep characters)
+            .replace(/([\u0300-\u036f]|[^0-9a-zA-Z])/g, '') // Remove all special characters
+            .slice(0, amountToMatch)
+        }
+
+        const queryParts = allQueries.map(processString)
+
         resultsInfo.lines.forEach((arr, i) => {
             const query = arr[resultsColumns.query]
-            const index = allQueries.findIndex(str => str == query)
+            const processedQuery = processString(query)
 
+            const index = queryParts.findIndex(str => str === processedQuery)
+            
             const isValid = index !== -1
 
 
@@ -244,6 +260,13 @@
 
         const conditions = [
 
+            // First Three Letters of First Name
+            (email, info) => (email.includes(`${info.fnl.slice(0,3)}`)),
+
+            //First Three Letters of Last Name
+            (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${lnlNoS.slice(0,3)}`))),
+
+
             // Last Name
             (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${lnlNoS}`))),
 
@@ -256,10 +279,11 @@
             // First Name and Last Name
             (email, info) => info.lnl.find(lnl => (email.includes(`${info.fnl}`) && email.includes(`${lnl}`))),
 
+
             // First Initial Last Name Together
             (email, info) => info.lnlNoS.find(lnlNoS => (email.includes(`${info.fnl[0]}${lnlNoS}`))),
 
-            // First Name Last Initial  Together
+            // First Name Last Initial Together
             (email, info) => info.lnl.find(lnl => (email.includes(`${info.fnl}${lnl[0]}`))),
 
             // Last Initial First Name  Together
@@ -298,16 +322,46 @@
                 const mapped = emails.map((email) => {
                     email = email.toLowerCase()
 
-                    const fnl = info.firstName.toLowerCase()
-                    const lnl = (info.lastName ?? '').toLowerCase().split(' ')[0].split(',')[0].split('-')
+                    const fnlSplit = info.firstName
+                                    .toLowerCase()
+                                    .split('.') // No Dr. or A.
+                                    .map(str => str.trim())
+                                    
+                    const fnl = fnlSplit[fnlSplit.length - 1]
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "") // Remove accents (keep characters)
+                                .replace(/([\u0300-\u036f]|[^0-9a-zA-Z])/g, '');
+
+
+
+                    const lnl = (info.lastName ?? '').toLowerCase()
+                                    .split(' ')
+                                    .filter(str => !str.includes('.') || str[str.length - 1] === '.')
+                                    .map(str => str.replace(',', ''))
+                                    .map(str => str.replace(/[0-9]|\./g, ''))
+                                    .map(str => str.split('-'))
+                                    .map(arr => {
+                                        return arr.map(str => {
+                                            return str
+                                            .normalize("NFD")
+                                            .replace(/[\u0300-\u036f]/g, "") // Remove accents (keep characters)
+                                            .replace(/([\u0300-\u036f]|[^0-9a-zA-Z])/g, '') // Remove all special characters
+                                            .trim()
+                                        })
+                                    }).flat()
+
                     const lnlNoS = lnl.map(str => str.replace(/s$/, ''))
                     const emailInfo = {
                         fnl,
                         lnl,
-                        lnlNoS
+                        lnlNoS,
+                        ...info
                     }
 
                     const errorScore = reversedConditions.findIndex(condition => condition(email, emailInfo)) // Low is better
+
+                    const str = `${fnl?.[0]}${lnlNoS[0].slice(0,3)}`
+
 
                     return {
                         email,
@@ -326,7 +380,6 @@
 
                 if (sorted.length > 0) {
                     email = sorted[0]
-                    // if (log) console.log('Decision', fullName, email, notSorted)
                 }
             }
 
