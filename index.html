@@ -407,9 +407,12 @@
             }
         }
 
-        validEmailsHeaer.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(people))).toFixed(3)}% of Names - ${nValidEmails}/${people}</i>`)
-        foundIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmail/(people))).toFixed(3)}% of Names - ${noEmail}/${people}</i>`)
-        matchIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmailMatched/(people - noEmail))).toFixed(3)}% of Names (with valid queries) with Emails - ${noEmailMatched}/${people - noEmail}</i>`)
+        const peopleWithQueries = people
+        const peopleWithEmails = people - noEmail
+
+        foundIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmail/(peopleWithQueries))).toFixed(3)}% of people with valid queries - ${noEmail}/${peopleWithQueries}</i>`)
+        matchIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmailMatched/peopleWithQueries)).toFixed(3)}% of people with valid queries - ${noEmailMatched}/${peopleWithQueries}</i>`)
+        validEmailsHeaer.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(peopleWithEmails))).toFixed(3)}% of people with emails - ${nValidEmails}/${peopleWithEmails} out of ${peopleWithQueries} total</i>`)
 
 
         // const tsv = newSheet.map(arr => arr.join('\t')).join('\n')
