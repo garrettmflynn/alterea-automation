@@ -157,7 +157,7 @@
         const queryInfo = fileInfo.queries
 
         const queryHeader =  queryInfo.headers.findIndex(str => str && str.includes('Search Query'))
-        const allQueries = queryInfo.lines.map(arr => arr[queryHeader].trim()) 
+        const allQueries = queryInfo.lines.map(arr => arr[queryHeader] ? arr[queryHeader].trim(): '') 
 
 
         const resultsQueryHeader = resultsInfo.headers.findIndex(str => str && str.includes('Query'))
@@ -167,6 +167,29 @@
         if (resultsQueryHeader) resultsColumns.emails = resultsEmailHeader
 
         const newSheetInfo = {}
+
+        const invalidQueries = [[
+            'Query'
+        ]]
+
+        const noEmails = [[
+            'Name',
+            'School',
+            'Role',
+            'Location',
+            'Domain',
+            'LinkedIn URL'
+        ]]
+
+        const noMatches= [[
+            'Name',
+            'Emails',
+            'School',
+            'Role',
+            'Location',
+            'Domain',
+            'LinkedIn URL'
+        ]]
 
         let valid = []
         let invalid = []
@@ -185,6 +208,7 @@
         }
 
         const queryParts = allQueries.map(processString)
+        
 
         resultsInfo.lines.forEach((arr, i) => {
             const query = arr[resultsColumns.query]
@@ -194,7 +218,7 @@
             
             const isValid = index !== -1
 
-
+            // Route to the Correct List
             if (!isValid) {
                 if (!invalid.includes(query)) {
                     invalid.push(query)
@@ -202,6 +226,7 @@
                     li.innerHTML = `${query}`
                     queryIssue.appendChild(li)
                     nQueries++
+                    invalidQueries.push([query])
                 }
                 return
             } else {
@@ -209,9 +234,11 @@
                     valid.push(query)
                     nQueries++
                 }
-            }
 
-            const [fullName, firstName, lastName, _, __, linkedin, location, company, role, website] = queryInfo.lines[index]
+
+
+                // Grab Info
+                const [fullName = '', firstName = '', lastName = '', _, __, linkedin = '', location = '', company = '', role = '', website = ''] = queryInfo.lines[index]
 
                 const info = newSheetInfo[fullName] ?? {
                     fullName,
@@ -233,7 +260,10 @@
                 })
 
 
+
                 newSheetInfo[fullName] = info
+            }
+
         })
 
         queryIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(invalid.length/nQueries)).toFixed(3)}% of All Queries — ${invalid.length}/${nQueries}</i>`)
@@ -247,7 +277,8 @@
             'School',
             'Role',
             'Location',
-            'Domain'
+            'Domain',
+            'LinkedIn URL'
         ]]
 
 
@@ -391,16 +422,18 @@
                     li.innerHTML = `${fullName} - ${email}`
                     validEmails.appendChild(li)
                     nValidEmails++
-                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, email.split('@')[1]])
-                    if (suptEmail && email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1]])
+                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, email.split('@')[1], info.linkedin])
+                    if (suptEmail && email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1], info.linkedin])
             } else {
                 const li = document.createElement('li')
                 if (emails.length === 0) {
+                    noEmails.push([fullName, info.company, info.role, info.location, info.linkedin])
                     noEmail++
                     li.innerHTML = `${fullName} - ${info.query}`
                     foundIssue.appendChild(li)
                 } else {
                     noEmailMatched++
+                    noMatches.push([fullName, emails.join(', '), info.company, info.role, info.location, info.linkedin])
                     li.innerHTML = `<p>${fullName}</p><ul>${emails.map(email => `<li>${email}</li>`).join('')}</ul>`
                     matchIssue.appendChild(li)
                 }
@@ -415,24 +448,21 @@
         validEmailsHeaer.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(peopleWithEmails))).toFixed(3)}% of people with emails - ${nValidEmails}/${peopleWithEmails} out of ${peopleWithQueries} total</i>`)
 
 
-        // const tsv = newSheet.map(arr => arr.join('\t')).join('\n')
-
-        // const filename = 'emails.tsv'
-
-        // // Download File
-        // var element = document.createElement('a');
-        // element.setAttribute('href', 'data:text/tab-separated-values;charset=utf-8,' + encodeURIComponent(tsv));
-        // element.setAttribute('download', filename);
-        // element.style.display = 'none';
-        // document.body.appendChild(element);
-        // element.click();
-        // document.body.removeChild(element);
-
         downloadButton.classList.add('active')
         downloadButton.onclick = () => {
             var workbook = XLSX.utils.book_new();
             var sheet1 = XLSX.utils.aoa_to_sheet(newSheet);
-            XLSX.utils.book_append_sheet(workbook, sheet1, "Superintendent Emails");
+            XLSX.utils.book_append_sheet(workbook, sheet1, "Valid Matches");
+
+            var sheet2 = XLSX.utils.aoa_to_sheet(noMatches);
+            XLSX.utils.book_append_sheet(workbook, sheet2, "No Matches");
+
+            var sheet3 = XLSX.utils.aoa_to_sheet(noEmails);
+            XLSX.utils.book_append_sheet(workbook, sheet3, "No Emails");
+
+            var sheet4 = XLSX.utils.aoa_to_sheet(invalidQueries);
+            XLSX.utils.book_append_sheet(workbook, sheet4, "No Matching Query");
+
 
             XLSX.writeFile(workbook, "alterea-superintendent-email-automation.xlsx");
         }
