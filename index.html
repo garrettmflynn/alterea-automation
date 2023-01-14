@@ -367,6 +367,10 @@
 
                     const lnl = (info.lastName ?? '').toLowerCase()
                                     .split(' ')
+                                    .map(str => {
+                                        if (str[0] === '.') return str.slice(1)
+                                        else return str
+                                    })
                                     .filter(str => !str.includes('.') || str[str.length - 1] === '.')
                                     .map(str => str.replace(',', ''))
                                     .map(str => str.replace(/[0-9]|\./g, ''))
@@ -390,9 +394,6 @@
                     }
 
                     const errorScore = reversedConditions.findIndex(condition => condition(email, emailInfo)) // Low is better
-
-                    const str = `${fnl?.[0]}${lnlNoS[0].slice(0,3)}`
-
 
                     return {
                         email,
