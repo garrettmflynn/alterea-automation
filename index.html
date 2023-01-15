@@ -88,7 +88,7 @@
             const found = initialResultsHeader.find(str => typeof str === 'string' && (str.includes('Query') || str.includes('Email')))
 
 
-            if (!found) XLSX.utils.sheet_add_aoa(wb.Sheets[results], [["Query", "Page Title", "Page Content", "Query Two", "", "Emails", "", "", "", "Website", "Date"]], { origin: "A1" });
+            if (!found) XLSX.utils.sheet_add_aoa(wb.Sheets[results], [["Query", "Page Title", "Page Content", "Query Two", "", "Emails", "", "", "", "Domain", "Date"]], { origin: "A1" });
 
             const queryLines = XLSX.utils.sheet_to_json(wb.Sheets[queries], {header: 1})
             const resultsLines = XLSX.utils.sheet_to_json(wb.Sheets[results], {header: 1})
@@ -181,7 +181,7 @@
             'LinkedIn URL'
         ]]
 
-        const noMatches= [[
+        const noMatches = [[
             'Name',
             'Emails',
             'School',
@@ -238,7 +238,7 @@
 
 
                 // Grab Info
-                const [fullName = '', firstName = '', lastName = '', _, __, linkedin = '', location = '', company = '', role = '', website = ''] = queryInfo.lines[index]
+                const [fullName = '', firstName = '', lastName = '', _, __, linkedin = '', location = '', company = '', role = '', domain = ''] = queryInfo.lines[index]
 
                 const info = newSheetInfo[fullName] ?? {
                     fullName,
@@ -248,7 +248,7 @@
                     location,
                     company,
                     role,
-                    website,
+                    domain,
                     emails: new Set(),
                     query: query
                 }
@@ -423,18 +423,18 @@
                     li.innerHTML = `${fullName} - ${email}`
                     validEmails.appendChild(li)
                     nValidEmails++
-                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, email.split('@')[1], info.linkedin])
+                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, info.domain ?? email.split('@')[1], info.linkedin])
                     if (suptEmail && email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1], info.linkedin])
             } else {
                 const li = document.createElement('li')
                 if (emails.length === 0) {
-                    noEmails.push([fullName, info.company, info.role, info.location, info.linkedin])
+                    noEmails.push([fullName, info.company, info.role, info.location, info.domain, info.linkedin])
                     noEmail++
                     li.innerHTML = `${fullName} - ${info.query}`
                     foundIssue.appendChild(li)
                 } else {
                     noEmailMatched++
-                    noMatches.push([fullName, emails.join(', '), info.company, info.role, info.location, info.linkedin])
+                    noMatches.push([fullName, emails.join(', '), info.company, info.role, info.location, info.domain, info.linkedin])
                     li.innerHTML = `<p>${fullName}</p><ul>${emails.map(email => `<li>${email}</li>`).join('')}</ul>`
                     matchIssue.appendChild(li)
                 }
