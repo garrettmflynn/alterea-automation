@@ -147,7 +147,10 @@
 
         downloadButton.classList.remove('active')
 
-        const buffer = await file.files[0].arrayBuffer()
+        const chosenFile =  file.files[0]
+        const originalFileName = chosenFile.name
+
+        const buffer = await chosenFile.arrayBuffer()
         const fileInfo = await read(buffer)
 
         if (!fileInfo.results || !fileInfo.queries) {
@@ -214,6 +217,8 @@
 
         resultsInfo.lines.forEach((arr, i) => {
             const query = arr[resultsColumns.query]
+            if (!query) return // Skip if no query
+            
             const processedQuery = processString(query)
 
             const index = queryParts.findIndex(str => str === processedQuery)
@@ -467,7 +472,7 @@
             XLSX.utils.book_append_sheet(workbook, sheet4, "No Matching Query");
 
 
-            XLSX.writeFile(workbook, "alterea-superintendent-email-automation.xlsx");
+            XLSX.writeFile(workbook, originalFileName.replace('.xlsx', '_matched.xlsx'))
         }
 
     }
