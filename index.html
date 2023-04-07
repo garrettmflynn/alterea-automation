@@ -22,6 +22,11 @@
             list-style-type: none; */
         }
 
+        h1 {
+            display: inline-block;
+            margin-bottom: 0;
+        }
+
         h4 {
             margin-bottom: 0;
         }
@@ -50,7 +55,7 @@
 
 </head>
 <body>
-    <h1>Alterea Automation Tools</h1>
+    <h1>Alterea Automation Tools</h1>&nbsp;&nbsp;<span id="version"></span>
     <p>Please include a <b>queries</b> and a <b>results</b> tab in your .xlsx file</p>
 
     <p><b>"Query" and "Email" headers should be specified</b> in the results tab.</p>
@@ -76,6 +81,11 @@
 </body>
 
 <script type="module">
+    import pkg from "./package.json" assert { type: "json" };
+
+    const version = pkg.version
+    const versionElement =  document.querySelector('#version')
+    versionElement.innerHTML = `v${version}`
 
     const downloadButton = document.querySelector('button');
 
@@ -259,6 +269,11 @@
                     emails: new Set(),
                     query: query
                 }
+
+                const strings = ['fullName', 'firstName', 'lastName', 'linkedin', 'location', 'company', 'role', 'domain']
+                strings.forEach(str => {
+                    if (typeof info[str] !== 'string') info[str] = ''
+                })
 
                 const emails = arr[resultsColumns.emails]
                 if (emails) emails.split(',').forEach(o => {
