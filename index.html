@@ -56,10 +56,13 @@
 </head>
 <body>
     <h1>Alterea Automation Tools</h1>&nbsp;&nbsp;<span id="version"></span>
-    <p>Please include a <b>queries</b> and a <b>results</b> tab in your .xlsx file</p>
+    <p>Please include a <b>Queries</b> and a <b>Results</b> tab in your .xlsx file</p>
 
-    <p><b>"Query" and "Email" headers should be specified</b> in the results tab.</p>
-
+    <h3>Requirements</h3>
+    <ul>
+        <li>Both tabs should have a <b>Query header</b>.</li>
+        <li>The Results tab should have an <b>Email header</b>.</li>
+    </ul>
     <h2>Organize Superintendent Emails</h2>
     <input type="file" accept=".xlsx"></input>
     <button>Download</button>
@@ -171,7 +174,7 @@
         const resultsInfo = fileInfo.results
         const queryInfo = fileInfo.queries
 
-        const queryHeader =  queryInfo.headers.findIndex(str => str && str.includes('Search Query'))
+        const queryHeader =  queryInfo.headers.findIndex(str => str && str.includes('Query'))
         const allQueries = queryInfo.lines.map(arr => arr[queryHeader] ? arr[queryHeader].trim(): '') 
 
 
