@@ -63,7 +63,7 @@
         <li>Both tabs should have a <b>Query header</b>.</li>
         <li>The Results tab should have an <b>Email header</b>.</li>
     </ul>
-    <h2>Organize Superintendent Emails</h2>
+    <h2>Organize Emails</h2>
     <input type="file" accept=".xlsx"></input>
     <button>Download</button>
 
@@ -296,7 +296,7 @@
         const numValid = resultsInfo.lines.length - invalid.length
 
         const newSheet = [[
-            'Email Name',
+            // 'Email Name',
             'Name',
             'Email',
             'School',
@@ -448,8 +448,8 @@
                     li.innerHTML = `${fullName} - ${email}`
                     validEmails.appendChild(li)
                     nValidEmails++
-                    newSheet.push([`Superintendent ${info.lastName}`, fullName, email, info.company, info.role, info.location, info.domain ?? email.split('@')[1], info.linkedin])
-                    if (suptEmail && email !== suptEmail) newSheet.push([`Superintendent ${info.lastName}`, fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1], info.linkedin])
+                    newSheet.push([fullName, email, info.company, info.role, info.location, info.domain ?? email.split('@')[1], info.linkedin])
+                    if (suptEmail && email !== suptEmail) newSheet.push([fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1], info.linkedin])
             } else {
                 const li = document.createElement('li')
                 if (emails.length === 0) {
