@@ -155,12 +155,17 @@
     const matchIssueHeader = document.querySelector('#matchIssueHeader');
     const validEmailsHeaer = document.querySelector('#validEmailsHeader');
 
+
+    const getId = (info) => info['Full Name'] ?? info.Name ?? Object.values(info)[0]
+
     file.onchange = async () => {
+
+        const chosenFile =  file.files[0]
+        if (!chosenFile) return
 
 
         downloadButton.classList.remove('active')
 
-        const chosenFile =  file.files[0]
         const originalFileName = chosenFile.name
 
         const buffer = await chosenFile.arrayBuffer()
@@ -190,24 +195,11 @@
             'Query'
         ]]
 
-        const noEmails = [[
-            'Name',
-            'School',
-            'Role',
-            'Location',
-            'Domain',
-            'LinkedIn URL'
-        ]]
+        const headers = queryInfo.headers.filter(str => !!str)
 
-        const noMatches = [[
-            'Name',
-            'Emails',
-            'School',
-            'Role',
-            'Location',
-            'Domain',
-            'LinkedIn URL'
-        ]]
+        const noEmails = [ headers ]
+
+        const noMatches = [["Emails", ...headers]]
 
         let valid = []
         let invalid = []
@@ -229,6 +221,7 @@
         
 
         resultsInfo.lines.forEach((arr, i) => {
+
             const query = arr[resultsColumns.query]
             if (!query) return // Skip if no query
             
@@ -256,27 +249,13 @@
                 }
 
 
+                const tempInfo = {}
+                queryInfo.headers.forEach((key, i) => key && (tempInfo[key] = queryInfo.lines[index][i]))
+                const ID = getId(tempInfo)
 
                 // Grab Info
-                const [fullName = '', firstName = '', lastName = '', _, __, linkedin = '', location = '', company = '', role = '', domain = ''] = queryInfo.lines[index]
-
-                const info = newSheetInfo[fullName] ?? {
-                    fullName,
-                    firstName,
-                    lastName,
-                    linkedin,
-                    location,
-                    company,
-                    role,
-                    domain,
-                    emails: new Set(),
-                    query: query
-                }
-
-                const strings = ['fullName', 'firstName', 'lastName', 'linkedin', 'location', 'company', 'role', 'domain']
-                strings.forEach(str => {
-                    if (typeof info[str] !== 'string') info[str] = ''
-                })
+                const hasInfo = newSheetInfo[index]
+                const info = hasInfo ?? { ...tempInfo, emails: new Set() }
 
                 const emails = arr[resultsColumns.emails]
                 if (emails) emails.split(',').forEach(o => {
@@ -284,9 +263,7 @@
                     if (res) info.emails.add(res)
                 })
 
-
-
-                newSheetInfo[fullName] = info
+                newSheetInfo[index] = info
             }
 
         })
@@ -295,17 +272,7 @@
 
         const numValid = resultsInfo.lines.length - invalid.length
 
-        const newSheet = [[
-            // 'Email Name',
-            'Name',
-            'Email',
-            'School',
-            'Role',
-            'Location',
-            'Domain',
-            'LinkedIn URL'
-        ]]
-
+        const newSheet = [ ["Email", ...headers] ]
 
         let noEmail = 0
         let noEmailMatched = 0
@@ -365,12 +332,15 @@
 
         const reversedConditions = conditions.reverse()
 
-        for (let fullName in newSheetInfo ) {
-            const info = newSheetInfo[fullName]
+        for (let idx in newSheetInfo ) {
+            const info = newSheetInfo[idx]
+
+            const ID = getId(info)
+
             const emails = Array.from(info.emails)
 
             let email;
-            if (info.emails.length === 1) email = emails[0]
+            if (emails.length === 1) email = emails[0]
             else {
 
                 const wasMatch = []
@@ -378,7 +348,7 @@
                 const mapped = emails.map((email) => {
                     email = email.toLowerCase()
 
-                    const fnlSplit = info.firstName
+                    const fnlSplit = info['First Name']
                                     .toLowerCase()
                                     .split('.') // No Dr. or A.
                                     .map(str => str.trim())
@@ -390,7 +360,7 @@
 
 
 
-                    const lnl = (info.lastName ?? '').toLowerCase()
+                    const lnl = (info['Last Name'] ?? '').toLowerCase()
                                     .split(' ')
                                     .map(str => {
                                         if (str[0] === '.') return str.slice(1)
@@ -415,7 +385,7 @@
                         fnl,
                         lnl,
                         lnlNoS,
-                        ...info
+                        // ...info
                     }
 
                     const errorScore = reversedConditions.findIndex(condition => condition(email, emailInfo)) // Low is better
@@ -440,27 +410,35 @@
                 }
             }
 
-            const suptEmail =  emails.find(o => o.includes('superintendent') || o.includes('supt'))
-            if (suptEmail && !email) email = suptEmail
+            // Special case for superintendents
+            // const suptEmail =  emails.find(o => o.includes('superintendent') || o.includes('supt'))
+            // if (suptEmail && !email) email = suptEmail
+
+            const row = [ ]
+            headers.forEach(k => row.push(info[k]))
 
             if (email) {
                     const li = document.createElement('li')
-                    li.innerHTML = `${fullName} - ${email}`
+                    li.innerHTML = `${ID} - ${email}`
                     validEmails.appendChild(li)
                     nValidEmails++
-                    newSheet.push([fullName, email, info.company, info.role, info.location, info.domain ?? email.split('@')[1], info.linkedin])
-                    if (suptEmail && email !== suptEmail) newSheet.push([fullName, suptEmail, info.company, info.role, info.location, suptEmail.split('@')[1], info.linkedin])
+                    newSheet.push([email, ...row])
+                    // if (suptEmail && email !== suptEmail) newSheet.push([suptEmail, ...row])
             } else {
                 const li = document.createElement('li')
                 if (emails.length === 0) {
-                    noEmails.push([fullName, info.company, info.role, info.location, info.domain, info.linkedin])
+
+                    const row = [ ]
+                    headers.forEach(k => row.push(info[k]))
+
+                    noEmails.push(row)
                     noEmail++
-                    li.innerHTML = `${fullName} - ${info.query}`
+                    li.innerHTML = `${ID} - ${info.Query}`
                     foundIssue.appendChild(li)
                 } else {
                     noEmailMatched++
-                    noMatches.push([fullName, emails.join(', '), info.company, info.role, info.location, info.domain, info.linkedin])
-                    li.innerHTML = `<p>${fullName}</p><ul>${emails.map(email => `<li>${email}</li>`).join('')}</ul>`
+                    row.unshift(emails.join(', '))
+                    li.innerHTML = `<p>${ID}</p><ul>${emails.map(email => `<li>${email}</li>`).join('')}</ul>`
                     matchIssue.appendChild(li)
                 }
             }
