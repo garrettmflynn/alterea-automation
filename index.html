@@ -60,8 +60,9 @@
 
     <h3>Requirements</h3>
     <ul>
-        <li>Both tabs should have a <b>Query header</b>.</li>
-        <li>The Results tab should have an <b>Email header</b>.</li>
+        <li>Both tabs must have a <b>Query header</b>.</li>
+        <li>In addition to the <b>Email</b> header, the Queries tab must have a <b>First Name</b> and <b>Last Name</b> header.</li>
+        <li>The Results tab must have an <b>Email header</b>.</li>
     </ul>
     <h2>Organize Emails</h2>
     <input type="file" accept=".xlsx"></input>
@@ -217,8 +218,7 @@
             .slice(0, amountToMatch)
         }
 
-        const queryParts = allQueries.map(processString)
-        
+        const queryParts = allQueries.map(processString)        
 
         resultsInfo.lines.forEach((arr, i) => {
 
@@ -348,7 +348,10 @@
                 const mapped = emails.map((email) => {
                     email = email.toLowerCase()
 
-                    const fnlSplit = info['First Name']
+                    const fn = info['First Name'] ?? ''
+                    const ln = info['Last Name'] ?? ''
+
+                    const fnlSplit = fn
                                     .toLowerCase()
                                     .split('.') // No Dr. or A.
                                     .map(str => str.trim())
@@ -360,7 +363,7 @@
 
 
 
-                    const lnl = (info['Last Name'] ?? '').toLowerCase()
+                    const lnl = ln.toLowerCase()
                                     .split(' ')
                                     .map(str => {
                                         if (str[0] === '.') return str.slice(1)
