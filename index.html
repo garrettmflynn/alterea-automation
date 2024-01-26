@@ -154,7 +154,7 @@
     const queryIssueHeader = document.querySelector('#queryIssueHeader');
     const foundIssueHeader = document.querySelector('#foundIssueHeader');
     const matchIssueHeader = document.querySelector('#matchIssueHeader');
-    const validEmailsHeaer = document.querySelector('#validEmailsHeader');
+    const validEmailsHeader = document.querySelector('#validEmailsHeader');
 
 
     const getId = (info) => info['Full Name'] ?? info.Name ?? Object.values(info)[0]
@@ -452,7 +452,7 @@
 
         foundIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmail/(peopleWithQueries))).toFixed(3)}% of people with valid queries - ${noEmail}/${peopleWithQueries}</i>`)
         matchIssueHeader.insertAdjacentHTML('afterend', `<i>${(100*(noEmailMatched/peopleWithQueries)).toFixed(3)}% of people with valid queries - ${noEmailMatched}/${peopleWithQueries}</i>`)
-        validEmailsHeaer.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(peopleWithEmails))).toFixed(3)}% of people with emails - ${nValidEmails}/${peopleWithEmails} out of ${peopleWithQueries} total</i>`)
+        validEmailsHeader.insertAdjacentHTML('afterend', `<i>${(100*(nValidEmails/(peopleWithEmails))).toFixed(3)}% of people with emails - ${nValidEmails}/${peopleWithEmails} out of ${peopleWithQueries} total</i>`)
 
 
         downloadButton.classList.add('active')
